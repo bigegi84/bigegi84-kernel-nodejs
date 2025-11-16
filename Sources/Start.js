@@ -1,4 +1,7 @@
-const readline = require("readline");
+import { createInterface } from "readline";
+import { Action } from "./Action.js";
+import { State } from "./State.js";
+import { UserSpace } from "./UserSpace.js";
 
 // syscall table
 const syscallTable = {
@@ -20,9 +23,8 @@ function syscall(name, args) {
 
 // kernel loop
 function kernelLoop() {
-  let tick = 0;
   setInterval(() => {
-    tick++;
+    State.Tick++;
     // console.log(`\n[Kernel Tick ${tick}]`);
     // syscall("status", {});
   }, 3000); // heartbeat tiap 3 detik
@@ -30,10 +32,10 @@ function kernelLoop() {
 
 // user-space terminal
 function userSpace() {
-  const rl = readline.createInterface({
+  const rl = createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: "user> ",
+    prompt: "Wk> ",
   });
 
   rl.prompt();
@@ -50,22 +52,36 @@ function userSpace() {
       case "spawn":
         syscall("spawn", { module: args[0] || "SatelliteLoader" });
         break;
-      case "status":
-        syscall("status", {});
+      // case "status":
+      //   syscall("status", {});
+      //   break;
+      case "touch":
+        const currentDirectory = Action.Directory.Current();
+        currentDirectory[args[0]] = "";
+        Action.Storage.Save();
         break;
-      case "exit":
-        console.log("Exiting kernel...");
+      case "poweroff":
+        console.log("Turn off.");
         process.exit(0);
         break;
       default:
-        console.log("Unknown command:", cmd);
+      // console.log("Unknown command:", cmd);
     }
 
+    if (UserSpace[cmd]) {
+      UserSpace[cmd](args);
+    } else {
+      console.log("Unknown command:", cmd);
+    }
     rl.prompt();
   });
 }
 
 // entry point
 console.log("[Kernel] Boot complete. Entering main loop + user space...");
+const Init = () => {
+  State.Storage = Action.Storage.Get();
+};
+Init();
 kernelLoop();
 userSpace();
